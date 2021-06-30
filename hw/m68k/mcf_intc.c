@@ -30,22 +30,37 @@ struct mcf_intc_state {
     uint8_t icr[64];
     M68kCPU *cpu;
     int active_vector;
+    int uc5282_intc;
 };
+
+static inline int get_int_level(mcf_intc_state *s, int i)
+{
+    return s->uc5282_intc ? (s->icr[i] >> 3) : s->icr[i];
+}
+
+static inline int get_int_prio(mcf_intc_state *s, int i)
+{
+    return s->uc5282_intc ? (s->icr[i] & 7) : 0;
+}
 
 static void mcf_intc_update(mcf_intc_state *s)
 {
     uint64_t active;
     int i;
     int best;
-    int best_level;
+    int best_level, best_prio, level, prio;
 
     active = (s->ipr | s->ifr) & s->enabled & ~s->imr;
     best_level = 0;
+    best_prio = 0;
     best = 64;
     if (active) {
         for (i = 0; i < 64; i++) {
-            if ((active & 1) != 0 && s->icr[i] >= best_level) {
-                best_level = s->icr[i];
+            level = get_int_level(s, i);
+            prio = get_int_prio(s, i);
+            if ((active & 1) != 0 && level >= best_level && prio >= best_prio) {
+                best_level = level;
+                best_prio = prio;
                 best = i;
             }
             active >>= 1;
@@ -200,7 +215,8 @@ type_init(mcf_intc_register_types)
 
 qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         hwaddr base,
-                        M68kCPU *cpu)
+                        M68kCPU *cpu,
+                        int uc5282_intc)
 {
     DeviceState  *dev;
     mcf_intc_state *s;
@@ -210,6 +226,7 @@ qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
 
     s = MCF_INTC(dev);
     s->cpu = cpu;
+    s->uc5282_intc = uc5282_intc;
 
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
