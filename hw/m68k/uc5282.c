@@ -149,52 +149,52 @@ static const MemoryRegionOps m5208_timer_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
-                               unsigned size)
-{
-    switch (addr) {
-    case 0x110: /* SDCS0 */
-        {
-            int n;
-            for (n = 0; n < 32; n++) {
-                if (current_machine->ram_size < (2u << n)) {
-                    break;
-                }
-            }
-            return (n - 1)  | 0x40000000;
-        }
-    case 0x114: /* SDCS1 */
-        return 0;
+// static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
+//                                unsigned size)
+// {
+//     switch (addr) {
+//     case 0x110: /* SDCS0 */
+//         {
+//             int n;
+//             for (n = 0; n < 32; n++) {
+//                 if (current_machine->ram_size < (2u << n)) {
+//                     break;
+//                 }
+//             }
+//             return (n - 1)  | 0x40000000;
+//         }
+//     case 0x114: /* SDCS1 */
+//         return 0;
 
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-                      __func__, addr);
-        return 0;
-    }
-}
+//     default:
+//         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+//                       __func__, addr);
+//         return 0;
+//     }
+// }
 
-static void m5208_sys_write(void *opaque, hwaddr addr,
-                            uint64_t value, unsigned size)
-{
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-                  __func__, addr);
-}
+// static void m5208_sys_write(void *opaque, hwaddr addr,
+//                             uint64_t value, unsigned size)
+// {
+//     qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+//                   __func__, addr);
+// }
 
-static const MemoryRegionOps m5208_sys_ops = {
-    .read = m5208_sys_read,
-    .write = m5208_sys_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
+// static const MemoryRegionOps m5208_sys_ops = {
+//     .read = m5208_sys_read,
+//     .write = m5208_sys_write,
+//     .endianness = DEVICE_NATIVE_ENDIAN,
+// };
 
 static void uc5282_sys_init(MemoryRegion *address_space, qemu_irq *pic)
 {
-    MemoryRegion *iomem = g_new(MemoryRegion, 1);
+    //MemoryRegion *iomem = g_new(MemoryRegion, 1);
     m5208_timer_state *s;
     int i;
 
     /* SDRAMC.  */
-    memory_region_init_io(iomem, NULL, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
-    memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
+    //memory_region_init_io(iomem, NULL, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
+    //memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
     /* Timers.  */
     for (i = 0; i < 4; i++) {
         s = g_new0(m5208_timer_state, 1);
@@ -203,7 +203,7 @@ static void uc5282_sys_init(MemoryRegion *address_space, qemu_irq *pic)
                               "uc5282-timer", 0x00004000);
         memory_region_add_subregion(address_space, 0x40150000 + 0x10000 * i,
                                     &s->iomem);
-        s->irq = pic[4 + i];
+        s->irq = pic[55 + i];
     }
 }
 
@@ -226,6 +226,64 @@ static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
 
     memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
 }
+
+// ===== START: Adding Till's RESETC Functionality =====
+
+static uint64_t uc5282_resetc_read(void *opaque, hwaddr addr,
+                                    unsigned size)
+{
+    switch (addr) {
+        case 0x0: /* RCR */
+        case 0x1: /* RSR */
+            return 0;
+ 
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                  __func__, addr);
+            return 0;
+    }
+}
+ 
+static void uc5282_resetc_write(void *opaque, hwaddr addr,
+                             uint64_t value, unsigned size)
+{
+    switch (addr) {
+        case 0x0: /* RCR */
+            if ( value & 0x80 ) {
+                exit(1);
+            }
+            break;
+        case 0x1: /* RSR */
+            break;
+ 
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                  __func__, addr);
+            break;
+    }
+}
+
+static const MemoryRegionOps uc5282_resetc_ops = {
+    .read = uc5282_resetc_read,
+    .write = uc5282_resetc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void uc5282_resetc_init(hwaddr offset)
+{
+    //int iomemtype;
+
+    MemoryRegion *resetcmem = g_new(MemoryRegion, 1);
+
+    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL, "m5208-resetc", 0x00004000);
+    memory_region_add_subregion(resetcmem, offset + 0x4, resetcmem);
+ 
+    //iomemtype = cpu_register_io_memory(m5208_resetc_readfn,
+    //                                   m5208_resetc_writefn, NULL);
+    //cpu_register_physical_memory(offset, 0x4, iomemtype);
+}
+
+// =====  END: Adding Till's RESETC Functionality  =====
 
 static void uc5282_init(MachineState *machine)
 {
@@ -260,6 +318,8 @@ static void uc5282_init(MachineState *machine)
     mcf_uart_mm_init(0x40000200, pic[13], serial_hd(0));
     mcf_uart_mm_init(0x40000250, pic[14], serial_hd(1));
     mcf_uart_mm_init(0x40000280, pic[15], serial_hd(2));
+
+    uc5282_resetc_init(0x40110000);
 
     uc5282_sys_init(address_space_mem, pic);
 
