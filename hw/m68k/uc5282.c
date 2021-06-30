@@ -255,11 +255,11 @@ static void uc5282_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x20000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu, 1);
+    pic = mcf_intc_init(address_space_mem, 0x400000c00, cpu, 1);
 
-    mcf_uart_mm_init(0xfc060000, pic[13], serial_hd(0));
-    mcf_uart_mm_init(0xfc064000, pic[14], serial_hd(1));
-    mcf_uart_mm_init(0xfc068000, pic[15], serial_hd(2));
+    mcf_uart_mm_init(0x40000200, pic[13], serial_hd(0));
+    mcf_uart_mm_init(0x40000250, pic[14], serial_hd(1));
+    mcf_uart_mm_init(0x40000280, pic[15], serial_hd(2));
 
     uc5282_sys_init(address_space_mem, pic);
 
@@ -350,7 +350,7 @@ static void uc5282_machine_init(MachineClass *mc)
 {
     mc->desc = "uc5282";
     mc->init = uc5282_init;
-    mc->default_cpu_type = M68K_CPU_TYPE_NAME("uc5282");
+    mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5208");
     mc->default_ram_id = "uc5282.ram";
 }
 
