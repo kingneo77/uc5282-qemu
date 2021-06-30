@@ -1,5 +1,5 @@
 /*
- * Motorola ColdFire MCF5208 SoC emulation.
+ * Motorola ColdFire MCF5282 SoC emulation.
  *
  * Copyright (c) 2007 CodeSourcery.
  *
@@ -186,7 +186,7 @@ static const MemoryRegionOps m5208_sys_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
+static void uc5282_sys_init(MemoryRegion *address_space, qemu_irq *pic)
 {
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
     m5208_timer_state *s;
@@ -196,12 +196,12 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
     memory_region_init_io(iomem, NULL, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
     memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
     /* Timers.  */
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 4; i++) {
         s = g_new0(m5208_timer_state, 1);
         s->timer = ptimer_init(m5208_timer_trigger, s, PTIMER_POLICY_DEFAULT);
         memory_region_init_io(&s->iomem, NULL, &m5208_timer_ops, s,
-                              "m5208-timer", 0x00004000);
-        memory_region_add_subregion(address_space, 0xfc080000 + 0x4000 * i,
+                              "uc5282-timer", 0x00004000);
+        memory_region_add_subregion(address_space, 0x40150000 + 0x10000 * i,
                                     &s->iomem);
         s->irq = pic[4 + i];
     }
@@ -227,7 +227,7 @@ static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
     memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
 }
 
-static void mcf5208evb_init(MachineState *machine)
+static void uc5282_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
@@ -238,7 +238,6 @@ static void mcf5208evb_init(MachineState *machine)
     hwaddr entry;
     qemu_irq *pic;
     MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
@@ -248,25 +247,21 @@ static void mcf5208evb_init(MachineState *machine)
     env->vbr = 0;
     /* TODO: Configure BARs.  */
 
-    /* ROM at 0x00000000 */
-    memory_region_init_rom(rom, NULL, "mcf5208.rom", ROM_SIZE, &error_fatal);
-    memory_region_add_subregion(address_space_mem, 0x00000000, rom);
-
-    /* DRAM at 0x40000000 */
-    memory_region_add_subregion(address_space_mem, 0x40000000, machine->ram);
+    /* DRAM at 0x00000000 */
+    memory_region_add_subregion(address_space_mem, 0x00000000, machine->ram);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "mcf5208.sram", 16 * KiB, &error_fatal);
-    memory_region_add_subregion(address_space_mem, 0x80000000, sram);
+    memory_region_init_ram(sram, NULL, "uc5282.sram", 64 * KiB, &error_fatal);
+    memory_region_add_subregion(address_space_mem, 0x20000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu, /* TEST: ADDING TILL'S CHANGE */ 0);
+    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu, 1);
 
-    mcf_uart_mm_init(0xfc060000, pic[26], serial_hd(0));
-    mcf_uart_mm_init(0xfc064000, pic[27], serial_hd(1));
-    mcf_uart_mm_init(0xfc068000, pic[28], serial_hd(2));
+    mcf_uart_mm_init(0xfc060000, pic[13], serial_hd(0));
+    mcf_uart_mm_init(0xfc064000, pic[14], serial_hd(1));
+    mcf_uart_mm_init(0xfc068000, pic[15], serial_hd(2));
 
-    mcf5208_sys_init(address_space_mem, pic);
+    uc5282_sys_init(address_space_mem, pic);
 
     if (nb_nics > 1) {
         error_report("Too many NICs");
@@ -274,7 +269,7 @@ static void mcf5208evb_init(MachineState *machine)
     }
     if (nd_table[0].used) {
         mcf_fec_init(address_space_mem, &nd_table[0],
-                     0xfc030000, pic + 36);
+                     0x40001000, pic + 23);
     }
 
     g_free(pic);
@@ -339,9 +334,9 @@ static void mcf5208evb_init(MachineState *machine)
                                   NULL, NULL);
     }
     if (kernel_size < 0) {
-        kernel_size = load_image_targphys(kernel_filename, 0x40000000,
+        kernel_size = load_image_targphys(kernel_filename, 0x00000000,
                                           ram_size);
-        entry = 0x40000000;
+        entry = 0x00000000;
     }
     if (kernel_size < 0) {
         error_report("Could not load kernel '%s'", kernel_filename);
@@ -351,13 +346,12 @@ static void mcf5208evb_init(MachineState *machine)
     env->pc = entry;
 }
 
-static void mcf5208evb_machine_init(MachineClass *mc)
+static void uc5282_machine_init(MachineClass *mc)
 {
-    mc->desc = "MCF5208EVB";
-    mc->init = mcf5208evb_init;
-    mc->is_default = true;
-    mc->default_cpu_type = M68K_CPU_TYPE_NAME("m5208");
-    mc->default_ram_id = "mcf5208.ram";
+    mc->desc = "uc5282";
+    mc->init = uc5282_init;
+    mc->default_cpu_type = M68K_CPU_TYPE_NAME("uc5282");
+    mc->default_ram_id = "uc5282.ram";
 }
 
-DEFINE_MACHINE("mcf5208evb", mcf5208evb_machine_init)
+DEFINE_MACHINE("uc5282", uc5282_machine_init)

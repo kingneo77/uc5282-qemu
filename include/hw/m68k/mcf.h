@@ -15,7 +15,8 @@ void mcf_uart_mm_init(hwaddr base, qemu_irq irq, Chardev *chr);
 /* mcf_intc.c */
 qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
                         hwaddr base,
-                        M68kCPU *cpu);
+                        M68kCPU *cpu,
+                        int is_uc5282);
 
 /* mcf5206.c */
 #define TYPE_MCF5206_MBAR "mcf5206-mbar"
