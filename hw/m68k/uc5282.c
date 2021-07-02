@@ -313,7 +313,7 @@ static void uc5282_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x20000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0x400000c00, cpu, 1);
+    pic = mcf_intc_init(address_space_mem, 0x40000c00, cpu, 1);
 
     mcf_uart_mm_init(0x40000200, pic[13], serial_hd(0));
     mcf_uart_mm_init(0x40000250, pic[14], serial_hd(1));
