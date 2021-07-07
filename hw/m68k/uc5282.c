@@ -26,6 +26,7 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "elf.h"
+#include "sysemu/runstate.h"
 
 #define SYS_FREQ 166666666
 
@@ -250,7 +251,7 @@ static void uc5282_resetc_write(void *opaque, hwaddr addr,
     switch (addr) {
         case 0x0: /* RCR */
             if ( value & 0x80 ) {
-                exit(1);
+                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             }
             break;
         case 0x1: /* RSR */
@@ -275,8 +276,9 @@ static void uc5282_resetc_init(MemoryRegion *address_space, hwaddr offset)
 
     MemoryRegion *resetcmem = g_new(MemoryRegion, 1);
 
-    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL, "m5208-resetc", 0x00004000);
-    memory_region_add_subregion(address_space, offset + 0x4, resetcmem);
+    // NOTE: Value of following line's address may need to be changed; may overwrite timer storage
+    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL, "m5208-resetc", 0x4);
+    memory_region_add_subregion(address_space, offset, resetcmem);
  
     //iomemtype = cpu_register_io_memory(m5208_resetc_readfn,
     //                                   m5208_resetc_writefn, NULL);
