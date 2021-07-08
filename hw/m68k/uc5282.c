@@ -1,5 +1,5 @@
 /*
- * Motorola ColdFire MCF5282 SoC emulation.
+ * Motorola ColdFire uC5282 SoC emulation.
  *
  * Copyright (c) 2007 CodeSourcery.
  *
@@ -49,9 +49,9 @@ typedef struct {
     uint16_t pcsr;
     uint16_t pmr;
     uint16_t pcntr;
-} m5208_timer_state;
+} uc5282_timer_state;
 
-static void m5208_timer_update(m5208_timer_state *s)
+static void uc5282_timer_update(uc5282_timer_state *s)
 {
     if ((s->pcsr & (PCSR_PIE | PCSR_PIF)) == (PCSR_PIE | PCSR_PIF))
         qemu_irq_raise(s->irq);
@@ -59,10 +59,10 @@ static void m5208_timer_update(m5208_timer_state *s)
         qemu_irq_lower(s->irq);
 }
 
-static void m5208_timer_write(void *opaque, hwaddr offset,
+static void uc5282_timer_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
-    m5208_timer_state *s = (m5208_timer_state *)opaque;
+    uc5282_timer_state *s = (uc5282_timer_state *)opaque;
     int prescale;
     int limit;
     switch (offset) {
@@ -75,7 +75,7 @@ static void m5208_timer_write(void *opaque, hwaddr offset,
         /* Avoid frobbing the timer if we're just twiddling IRQ bits. */
         if (((s->pcsr ^ value) & ~PCSR_PIE) == 0) {
             s->pcsr = value;
-            m5208_timer_update(s);
+            uc5282_timer_update(s);
             return;
         }
 
@@ -116,20 +116,20 @@ static void m5208_timer_write(void *opaque, hwaddr offset,
                       __func__, offset);
         return;
     }
-    m5208_timer_update(s);
+    uc5282_timer_update(s);
 }
 
-static void m5208_timer_trigger(void *opaque)
+static void uc5282_timer_trigger(void *opaque)
 {
-    m5208_timer_state *s = (m5208_timer_state *)opaque;
+    uc5282_timer_state *s = (uc5282_timer_state *)opaque;
     s->pcsr |= PCSR_PIF;
-    m5208_timer_update(s);
+    uc5282_timer_update(s);
 }
 
-static uint64_t m5208_timer_read(void *opaque, hwaddr addr,
+static uint64_t uc5282_timer_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    m5208_timer_state *s = (m5208_timer_state *)opaque;
+    uc5282_timer_state *s = (uc5282_timer_state *)opaque;
     switch (addr) {
     case 0:
         return s->pcsr;
@@ -144,64 +144,23 @@ static uint64_t m5208_timer_read(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps m5208_timer_ops = {
-    .read = m5208_timer_read,
-    .write = m5208_timer_write,
+static const MemoryRegionOps uc5282_timer_ops = {
+    .read = uc5282_timer_read,
+    .write = uc5282_timer_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-// static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
-//                                unsigned size)
-// {
-//     switch (addr) {
-//     case 0x110: /* SDCS0 */
-//         {
-//             int n;
-//             for (n = 0; n < 32; n++) {
-//                 if (current_machine->ram_size < (2u << n)) {
-//                     break;
-//                 }
-//             }
-//             return (n - 1)  | 0x40000000;
-//         }
-//     case 0x114: /* SDCS1 */
-//         return 0;
-
-//     default:
-//         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-//                       __func__, addr);
-//         return 0;
-//     }
-// }
-
-// static void m5208_sys_write(void *opaque, hwaddr addr,
-//                             uint64_t value, unsigned size)
-// {
-//     qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-//                   __func__, addr);
-// }
-
-// static const MemoryRegionOps m5208_sys_ops = {
-//     .read = m5208_sys_read,
-//     .write = m5208_sys_write,
-//     .endianness = DEVICE_NATIVE_ENDIAN,
-// };
-
 static void uc5282_sys_init(MemoryRegion *address_space, qemu_irq *pic)
 {
-    //MemoryRegion *iomem = g_new(MemoryRegion, 1);
-    m5208_timer_state *s;
+    uc5282_timer_state *s;
     int i;
 
-    /* SDRAMC.  */
-    //memory_region_init_io(iomem, NULL, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
-    //memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
     /* Timers.  */
     for (i = 0; i < 4; i++) {
-        s = g_new0(m5208_timer_state, 1);
-        s->timer = ptimer_init(m5208_timer_trigger, s, PTIMER_POLICY_DEFAULT);
-        memory_region_init_io(&s->iomem, NULL, &m5208_timer_ops, s,
-                              "uc5282-timer", 0x00004000);
+        s = g_new0(uc5282_timer_state, 1);
+        s->timer = ptimer_init(uc5282_timer_trigger, s, PTIMER_POLICY_DEFAULT);
+        memory_region_init_io(&s->iomem, NULL, &uc5282_timer_ops, s,
+                              "uc5282-timer", 0x00000008);
         memory_region_add_subregion(address_space, 0x40150000 + 0x10000 * i,
                                     &s->iomem);
         s->irq = pic[55 + i];
@@ -227,8 +186,6 @@ static void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd, hwaddr base,
 
     memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(s, 0));
 }
-
-// ===== START: Adding Till's RESETC Functionality =====
 
 static uint64_t uc5282_resetc_read(void *opaque, hwaddr addr,
                                     unsigned size)
@@ -272,20 +229,11 @@ static const MemoryRegionOps uc5282_resetc_ops = {
 
 static void uc5282_resetc_init(MemoryRegion *address_space, hwaddr offset)
 {
-    //int iomemtype;
-
     MemoryRegion *resetcmem = g_new(MemoryRegion, 1);
 
-    // NOTE: Value of following line's address may need to be changed; may overwrite timer storage
-    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL, "m5208-resetc", 0x4);
+    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL, "uc5282-resetc", 0x4);
     memory_region_add_subregion(address_space, offset, resetcmem);
- 
-    //iomemtype = cpu_register_io_memory(m5208_resetc_readfn,
-    //                                   m5208_resetc_writefn, NULL);
-    //cpu_register_physical_memory(offset, 0x4, iomemtype);
 }
-
-// =====  END: Adding Till's RESETC Functionality  =====
 
 static void uc5282_init(MachineState *machine)
 {

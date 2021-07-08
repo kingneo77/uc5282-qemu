@@ -260,7 +260,7 @@ static void mcf5208evb_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu, /* TEST: ADDING TILL'S CHANGE */ 0);
+    pic = mcf_intc_init(address_space_mem, 0xfc048000, cpu, 0);
 
     mcf_uart_mm_init(0xfc060000, pic[26], serial_hd(0));
     mcf_uart_mm_init(0xfc064000, pic[27], serial_hd(1));
