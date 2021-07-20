@@ -160,7 +160,7 @@ static void uc5282_sys_init(MemoryRegion *address_space, qemu_irq *pic)
         s = g_new0(uc5282_timer_state, 1);
         s->timer = ptimer_init(uc5282_timer_trigger, s, PTIMER_POLICY_DEFAULT);
         memory_region_init_io(&s->iomem, NULL, &uc5282_timer_ops, s,
-                              "uc5282-timer", 0x00000008);
+                              "uc5282-timer", 0x8);
         memory_region_add_subregion(address_space, 0x40150000 + 0x10000 * i,
                                     &s->iomem);
         s->irq = pic[55 + i];
@@ -262,7 +262,7 @@ static void uc5282_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x20000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0x40000c00, cpu, 1);
+    pic = mcf_intc_init(address_space_mem, 0x40000c00, cpu/*, 1*/);
 
     mcf_uart_mm_init(0x40000200, pic[13], serial_hd(0));
     mcf_uart_mm_init(0x40000250, pic[14], serial_hd(1));
