@@ -175,7 +175,7 @@ void HELPER(cf_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
     case M68K_CR_VBR:
         env->vbr = val;
         break;
-    case 0xc05: /* rambar TILL */
+    case 0xc05: /* rambar */
         env->rambar0 = val;
         break;
     /* TODO: Implement control registers.  */

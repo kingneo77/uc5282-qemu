@@ -160,7 +160,7 @@ static void uc5282_sys_init(MemoryRegion *address_space, qemu_irq *pic)
         s = g_new0(uc5282_timer_state, 1);
         s->timer = ptimer_init(uc5282_timer_trigger, s, PTIMER_POLICY_DEFAULT);
         memory_region_init_io(&s->iomem, NULL, &uc5282_timer_ops, s,
-                              "uc5282-timer", 0x00000008);
+                              "uc5282-timer", 0x8);
         memory_region_add_subregion(address_space, 0x40150000 + 0x10000 * i,
                                     &s->iomem);
         s->irq = pic[55 + i];
@@ -191,33 +191,31 @@ static uint64_t uc5282_resetc_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     switch (addr) {
-        case 0x0: /* RCR */
-        case 0x1: /* RSR */
-            return 0;
- 
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-                  __func__, addr);
-            return 0;
+    case 0x0: /* RCR */
+    case 0x1: /* RSR */
+        return 0;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                      __func__, addr);
+        return 0;
     }
 }
- 
+
 static void uc5282_resetc_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
     switch (addr) {
-        case 0x0: /* RCR */
-            if ( value & 0x80 ) {
-                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-            }
-            break;
-        case 0x1: /* RSR */
-            break;
- 
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
-                  __func__, addr);
-            break;
+    case 0x0: /* RCR */
+        if (value & 0x80) {
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        }
+        break;
+    case 0x1: /* RSR */
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIX "\n",
+                      __func__, addr);
+        break;
     }
 }
 
@@ -231,7 +229,8 @@ static void uc5282_resetc_init(MemoryRegion *address_space, hwaddr offset)
 {
     MemoryRegion *resetcmem = g_new(MemoryRegion, 1);
 
-    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL, "uc5282-resetc", 0x4);
+    memory_region_init_io(resetcmem, NULL, &uc5282_resetc_ops, NULL,
+                          "uc5282-resetc", 0x4);
     memory_region_add_subregion(address_space, offset, resetcmem);
 }
 
@@ -263,7 +262,7 @@ static void uc5282_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x20000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(address_space_mem, 0x40000c00, cpu, 1);
+    pic = mcf_intc_init(address_space_mem, 0x40000c00, cpu);
 
     mcf_uart_mm_init(0x40000200, pic[13], serial_hd(0));
     mcf_uart_mm_init(0x40000250, pic[14], serial_hd(1));
